@@ -28,22 +28,27 @@ into cloud-init, which handles everything.
 
 ### Windows
 
-Flash the SD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/), then write
-the cloud-init config to the mounted boot partition with the PowerShell script:
+Run the PowerShell script from an **administrator** terminal. It downloads the image, flashes
+the SD card, and writes the cloud-init config in one step:
 
 ```powershell
-# Minimal
-.\inject-cloud-init.ps1 -BootDrive E: -Hostname mypi
+# Interactive (prompts for distro, disk, password)
+.\download-and-flash-cloud-init.ps1 -Hostname mypi
 
-# Full example
-.\inject-cloud-init.ps1 -BootDrive E: -Hostname mypi `
+# Fully specified
+.\download-and-flash-cloud-init.ps1 -Hostname mypi -Distro rpios-lite-64 -Disk 1 `
   -PiUser beartums -Timezone America/New_York `
   -NasHost 192.168.1.10 -NasUser eric `
   -WifiSsid MyNetwork -WifiPassword wifipass
+
+# Already-flashed card — skip download and flash, write config only
+.\download-and-flash-cloud-init.ps1 -BootDrive E: -Hostname mypi
 ```
 
-Requires **WSL2** (preferred) or **Python 3.12** for SHA-512 password hashing.
-Raspberry Pi Imager handles the flash — this script only writes the cloud-init config files.
+Requires:
+- **Administrator** PowerShell (right-click → "Run as administrator") for SD card write
+- **WSL2** (preferred) or **Python 3.12** for SHA-512 password hashing — `wsl --install`
+- **7-Zip** or WSL2 for image decompression — [7-zip.org](https://www.7-zip.org/)
 
 ---
 
