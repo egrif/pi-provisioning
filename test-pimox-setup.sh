@@ -14,6 +14,7 @@
 #
 # Options:
 #   --validate-only   Run syntax and source-content checks only; skip mock run
+#   --check-urls      Make live HTTP requests to verify mirror URLs are reachable
 #   --keep            Leave the test root directory after the test
 #   --work-dir DIR    Scratch dir (default: auto temp, auto-cleaned)
 #   --hostname NAME   Hostname to use in the mock run (default: pimox-test)
@@ -35,6 +36,7 @@ die()   { echo -e "${RED}[err]${RESET}   $*" >&2; exit 1; }
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 VALIDATE_ONLY=false
+CHECK_URLS=false
 KEEP=false
 WORK_DIR=""
 TEST_HOSTNAME="pimox-test"
@@ -44,6 +46,7 @@ TEST_GATEWAY="192.168.1.1"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --validate-only) VALIDATE_ONLY=true; shift ;;
+    --check-urls)    CHECK_URLS=true;    shift ;;
     --keep)          KEEP=true;          shift ;;
     --work-dir)      WORK_DIR="$2";      shift 2 ;;
     --hostname)      TEST_HOSTNAME="$2"; shift 2 ;;
@@ -158,7 +161,33 @@ check_contains "interfaces: bridge-stp off"                     "bridge-stp off"
 check_contains "interfaces: bridge-fd 0"                        "bridge-fd 0"                                 "$PIMOX_SCRIPT"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PHASE 2 — Mock integration (PIMOX_TEST_ROOT redirects all file writes)
+# PHASE 2 — URL reachability (--check-urls only)
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ "$CHECK_URLS" == "true" ]]; then
+
+step "URL reachability checks"
+
+check_url() {
+  local name="$1" url="$2"
+  local code
+  code=$(curl -fsSL -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 20 "$url" 2>/dev/null || true)
+  if [[ "$code" == "200" ]]; then
+    record PASS "$name (HTTP $code)"
+  else
+    record FAIL "$name" "HTTP ${code:-000} from $url"
+  fi
+}
+
+check_url "GPG key URL reachable"                    "https://mirrors.lierfang.com/pxcloud/lierfang.gpg"
+check_url "Repo Release file reachable (bookworm)"   "https://mirrors.lierfang.com/pxcloud/pxvirt/dists/bookworm/Release"
+check_url "Repo Release file reachable (trixie)"     "https://mirrors.lierfang.com/pxcloud/pxvirt/dists/trixie/Release"
+
+else
+  info "Skipping URL checks (pass --check-urls to enable)"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHASE 3 — Mock integration (PIMOX_TEST_ROOT redirects all file writes)
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ "$VALIDATE_ONLY" == "true" ]]; then
   info "Skipping mock integration (--validate-only)"
