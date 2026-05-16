@@ -189,78 +189,80 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 3 — Mock integration (PIMOX_TEST_ROOT redirects all file writes)
 # ─────────────────────────────────────────────────────────────────────────────
+run_mock_integration() {
+  local codename="$1"
+  local tr="$WORK_DIR/test-root-${codename}"
+
+  step "Mock integration run (${codename})"
+  info "Running pimox-setup.sh with PIMOX_TEST_ROOT=$tr ..."
+  PIMOX_TEST_ROOT="$tr" \
+    "$PIMOX_SCRIPT" \
+      -y \
+      --hostname      "$TEST_HOSTNAME" \
+      --ip            "$TEST_IP" \
+      --gateway       "$TEST_GATEWAY" \
+      --netmask       24 \
+      --dns           1.1.1.1 \
+      --iface         eth0 \
+      --codename      "$codename" \
+      --root-password testpass \
+      --skip-upgrade 2>&1 | sed 's/^/    /'
+  echo
+
+  step "Validating generated files (${codename})"
+
+  # /etc/hosts
+  check_exists    "[${codename}] /etc/hosts exists"                  "${tr}/etc/hosts"
+  check_contains  "[${codename}] /etc/hosts has static IP → hostname" "${TEST_IP}    ${TEST_HOSTNAME}" "${tr}/etc/hosts"
+
+  # /etc/network/interfaces
+  check_exists    "[${codename}] /etc/network/interfaces exists"     "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: has vmbr0 stanza"       "iface vmbr0 inet static"         "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: has static IP/prefix"   "${TEST_IP}/24"                   "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: has gateway"            "gateway ${TEST_GATEWAY}"         "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: bridge-ports eth0"      "bridge-ports eth0"               "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: bridge-stp off"         "bridge-stp off"                  "${tr}/etc/network/interfaces"
+  check_contains  "[${codename}] interfaces: auto eth0"              "auto eth0"                       "${tr}/etc/network/interfaces"
+
+  # pimox-install.sh
+  local install="${tr}/usr/local/sbin/pimox-install.sh"
+  check_exists      "[${codename}] pimox-install.sh exists"                "$install"
+  check_executable  "[${codename}] pimox-install.sh is executable"         "$install"
+  check_contains    "[${codename}] pimox-install.sh: installs proxmox-ve"  "proxmox-ve"       "$install"
+  check_contains    "[${codename}] pimox-install.sh: DEBIAN_FRONTEND set"  "DEBIAN_FRONTEND"  "$install"
+  check_contains    "[${codename}] pimox-install.sh: self-disables"        "systemctl disable" "$install"
+  check_contains    "[${codename}] pimox-install.sh: logs to file"         "pimox-install.log" "$install"
+
+  # pimox-install.service
+  local service="${tr}/etc/systemd/system/pimox-install.service"
+  check_exists    "[${codename}] pimox-install.service exists"             "$service"
+  check_contains  "[${codename}] service: After=network-online.target"     "After=network-online.target"             "$service"
+  check_contains  "[${codename}] service: ExecStart correct"               "ExecStart=/usr/local/sbin/pimox-install" "$service"
+  check_contains  "[${codename}] service: Type=oneshot"                    "Type=oneshot"                            "$service"
+  check_contains  "[${codename}] service: WantedBy=multi-user.target"      "WantedBy=multi-user.target"              "$service"
+
+  # APT repo — codename must appear in the repo line
+  local repo="${tr}/etc/apt/sources.list.d/pveport.list"
+  check_exists    "[${codename}] pveport.list exists"                      "$repo"
+  check_contains  "[${codename}] pveport.list: pxcloud/pxvirt URL"         "pxcloud/pxvirt"    "$repo"
+  check_contains  "[${codename}] pveport.list: correct codename"           "$codename"         "$repo"
+
+  # GPG key
+  check_exists    "[${codename}] GPG keyrings directory exists"            "${tr}/usr/share/keyrings"
+  check_exists    "[${codename}] GPG key file (lierfang.gpg) written"      "${tr}/usr/share/keyrings/lierfang.gpg"
+
+  # cloud-init drop-in
+  local dropin="${tr}/etc/cloud/cloud.cfg.d/99-pimox-hostname.cfg"
+  check_exists    "[${codename}] 99-pimox-hostname.cfg exists"             "$dropin"
+  check_contains  "[${codename}] 99-pimox-hostname.cfg: preserve_hostname" "preserve_hostname: true"  "$dropin"
+  check_contains  "[${codename}] 99-pimox-hostname.cfg: manage_etc_hosts"  "manage_etc_hosts: false"  "$dropin"
+}
+
 if [[ "$VALIDATE_ONLY" == "true" ]]; then
   info "Skipping mock integration (--validate-only)"
 else
-
-step "Mock integration run"
-
-TR="$WORK_DIR/test-root"
-
-info "Running pimox-setup.sh with PIMOX_TEST_ROOT=$TR ..."
-PIMOX_TEST_ROOT="$TR" \
-  "$PIMOX_SCRIPT" \
-    -y \
-    --hostname   "$TEST_HOSTNAME" \
-    --ip         "$TEST_IP" \
-    --gateway    "$TEST_GATEWAY" \
-    --netmask    24 \
-    --dns        1.1.1.1 \
-    --iface      eth0 \
-    --root-password testpass \
-    --skip-upgrade 2>&1 | sed 's/^/    /'
-
-echo
-
-step "Validating generated files"
-
-# /etc/hosts
-check_exists    "/etc/hosts exists"                  "${TR}/etc/hosts"
-check_contains  "/etc/hosts has static IP → hostname" "${TEST_IP}    ${TEST_HOSTNAME}" "${TR}/etc/hosts"
-
-# /etc/network/interfaces
-check_exists    "/etc/network/interfaces exists"     "${TR}/etc/network/interfaces"
-check_contains  "interfaces: has vmbr0 stanza"       "iface vmbr0 inet static"         "${TR}/etc/network/interfaces"
-check_contains  "interfaces: has static IP/prefix"   "${TEST_IP}/24"                   "${TR}/etc/network/interfaces"
-check_contains  "interfaces: has gateway"            "gateway ${TEST_GATEWAY}"         "${TR}/etc/network/interfaces"
-check_contains  "interfaces: bridge-ports eth0"      "bridge-ports eth0"               "${TR}/etc/network/interfaces"
-check_contains  "interfaces: bridge-stp off"         "bridge-stp off"                  "${TR}/etc/network/interfaces"
-check_contains  "interfaces: auto ${IFACE:-eth0}"    "auto eth0"                       "${TR}/etc/network/interfaces"
-
-# pimox-install.sh
-INSTALL="${TR}/usr/local/sbin/pimox-install.sh"
-check_exists      "pimox-install.sh exists"                "$INSTALL"
-check_executable  "pimox-install.sh is executable"         "$INSTALL"
-check_contains    "pimox-install.sh: installs proxmox-ve"  "proxmox-ve"                 "$INSTALL"
-check_contains    "pimox-install.sh: DEBIAN_FRONTEND set"  "DEBIAN_FRONTEND"            "$INSTALL"
-check_contains    "pimox-install.sh: self-disables"        "systemctl disable"          "$INSTALL"
-check_contains    "pimox-install.sh: logs to file"         "pimox-install.log"          "$INSTALL"
-
-# pimox-install.service
-SERVICE="${TR}/etc/systemd/system/pimox-install.service"
-check_exists    "pimox-install.service exists"             "$SERVICE"
-check_contains  "service: After=network-online.target"     "After=network-online.target"            "$SERVICE"
-check_contains  "service: ExecStart correct"               "ExecStart=/usr/local/sbin/pimox-install" "$SERVICE"
-check_contains  "service: Type=oneshot"                    "Type=oneshot"                            "$SERVICE"
-check_contains  "service: WantedBy=multi-user.target"      "WantedBy=multi-user.target"              "$SERVICE"
-
-# APT repo
-REPO="${TR}/etc/apt/sources.list.d/pveport.list"
-check_exists    "pveport.list exists"                      "$REPO"
-check_contains  "pveport.list: mirrors.lierfang.com URL"   "mirrors.lierfang.com"       "$REPO"
-check_contains  "pveport.list: pxcloud/pxvirt"              "pxcloud/pxvirt"             "$REPO"
-
-# GPG key placeholder
-GPG_FILE="${TR}/usr/share/keyrings/lierfang.gpg"
-check_exists    "GPG keyrings directory exists"            "${TR}/usr/share/keyrings"
-check_exists    "GPG key file (lierfang.gpg) written"      "$GPG_FILE"
-
-# cloud-init drop-in
-DROPIN="${TR}/etc/cloud/cloud.cfg.d/99-pimox-hostname.cfg"
-check_exists    "99-pimox-hostname.cfg exists"             "$DROPIN"
-check_contains  "99-pimox-hostname.cfg: preserve_hostname" "preserve_hostname: true"    "$DROPIN"
-check_contains  "99-pimox-hostname.cfg: manage_etc_hosts"  "manage_etc_hosts: false"    "$DROPIN"
-
+  run_mock_integration bookworm
+  run_mock_integration trixie
 fi  # end mock integration
 
 # ─────────────────────────────────────────────────────────────────────────────

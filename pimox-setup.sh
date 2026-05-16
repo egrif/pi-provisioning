@@ -44,6 +44,7 @@ GATEWAY=""
 NETMASK=""
 DNS=""
 IFACE=""
+CODENAME=""
 SKIP_UPGRADE=false
 AUTO_YES=false
 ROOT_PASSWORD=""
@@ -56,6 +57,7 @@ while [[ $# -gt 0 ]]; do
     --netmask)       NETMASK="$2";        shift 2 ;;
     --dns)           DNS="$2";            shift 2 ;;
     --iface)         IFACE="$2";          shift 2 ;;
+    --codename)      CODENAME="$2";       shift 2 ;;
     --root-password) ROOT_PASSWORD="$2";  shift 2 ;;
     --skip-upgrade)  SKIP_UPGRADE=true;   shift ;;
     -y|--yes)        AUTO_YES=true;       shift ;;
@@ -100,8 +102,10 @@ else
 fi
 ok "Architecture: $ARCH"
 
-# Detect OS
-if [[ -f /etc/os-release ]]; then
+# Detect OS (skipped when --codename is passed explicitly)
+if [[ -n "$CODENAME" ]]; then
+  info "Codename: $CODENAME (from --codename)"
+elif [[ -f /etc/os-release ]]; then
   . /etc/os-release
   info "OS: $PRETTY_NAME"
   CODENAME="${VERSION_CODENAME:-bookworm}"
