@@ -766,12 +766,11 @@ ws '  ok "Root password set"'
 ws ""
 ws "  # Add PiMox GPG key"
 ws '  log "Adding PiMox GPG key..."'
-ws '  curl -fsSL "https://mirrors.lierfang.com/proxmox-port/debian/dists/${CODENAME}/Release.gpg" \'
-ws '    | gpg --dearmor -o "/etc/apt/trusted.gpg.d/proxmox-release-${CODENAME}.gpg"'
+ws '  curl -L "https://mirrors.lierfang.com/pxcloud/lierfang.gpg" | tee /usr/share/keyrings/lierfang.gpg > /dev/null'
 ws '  ok "PiMox GPG key added"'
 ws ""
 ws "  # Add PiMox repository and refresh"
-ws '  echo "deb https://mirrors.lierfang.com/proxmox-port/debian ${CODENAME} pve-no-subscription" \'
+ws '  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/lierfang.gpg] https://mirrors.lierfang.com/pxcloud/pxvirt ${CODENAME} main" \'
 ws '    > /etc/apt/sources.list.d/pveport.list'
 ws '  apt-get update -y -qq'
 ws '  ok "PiMox apt repository added"'

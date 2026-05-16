@@ -787,12 +787,11 @@ if [[ "$PIMOX" == "true" ]]; then
 
   # Add PiMox GPG key
   log "Adding PiMox GPG key..."
-  curl -fsSL "https://mirrors.lierfang.com/proxmox-port/debian/dists/${CODENAME}/Release.gpg" \
-    | gpg --dearmor -o "/etc/apt/trusted.gpg.d/proxmox-release-${CODENAME}.gpg"
+  curl -L "https://mirrors.lierfang.com/pxcloud/lierfang.gpg" | tee /usr/share/keyrings/lierfang.gpg > /dev/null
   ok "PiMox GPG key added"
 
   # Add PiMox repository and refresh
-  echo "deb https://mirrors.lierfang.com/proxmox-port/debian ${CODENAME} pve-no-subscription" \
+  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/lierfang.gpg] https://mirrors.lierfang.com/pxcloud/pxvirt ${CODENAME} main" \
     > /etc/apt/sources.list.d/pveport.list
   apt-get update -y -qq
   ok "PiMox apt repository added"

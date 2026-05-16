@@ -149,8 +149,8 @@ check_contains "service: Wants=network-online.target"           "Wants=network-o
 check_contains "service: ExecStart points to install script"    "ExecStart=/usr/local/sbin/pimox-install.sh"  "$PIMOX_SCRIPT"
 check_contains "service: WantedBy=multi-user.target"            "WantedBy=multi-user.target"                  "$PIMOX_SCRIPT"
 check_contains "service: Type=oneshot"                          "Type=oneshot"                                "$PIMOX_SCRIPT"
-check_contains "repo URL is mirrors.lierfang.com"               "mirrors.lierfang.com"                        "$PIMOX_SCRIPT"
-check_contains "GPG key from mirrors.lierfang.com"              "https://mirrors.lierfang.com/proxmox-port"   "$PIMOX_SCRIPT"
+check_contains "repo URL is pxcloud/pxvirt"                     "mirrors.lierfang.com/pxcloud/pxvirt"         "$PIMOX_SCRIPT"
+check_contains "GPG key from mirrors.lierfang.com/pxcloud"      "https://mirrors.lierfang.com/pxcloud"        "$PIMOX_SCRIPT"
 check_contains "cloud.cfg.d: preserve_hostname"                 "preserve_hostname: true"                     "$PIMOX_SCRIPT"
 check_contains "cloud.cfg.d: manage_etc_hosts false"            "manage_etc_hosts: false"                     "$PIMOX_SCRIPT"
 check_contains "interfaces: vmbr0 bridge config"                "iface vmbr0 inet static"                     "$PIMOX_SCRIPT"
@@ -219,17 +219,12 @@ check_contains  "service: WantedBy=multi-user.target"      "WantedBy=multi-user.
 REPO="${TR}/etc/apt/sources.list.d/pveport.list"
 check_exists    "pveport.list exists"                      "$REPO"
 check_contains  "pveport.list: mirrors.lierfang.com URL"   "mirrors.lierfang.com"       "$REPO"
-check_contains  "pveport.list: pve-no-subscription"        "pve-no-subscription"        "$REPO"
+check_contains  "pveport.list: pxcloud/pxvirt"              "pxcloud/pxvirt"             "$REPO"
 
 # GPG key placeholder
-GPG_DIR="${TR}/etc/apt/trusted.gpg.d"
-check_exists    "GPG trusted.gpg.d directory exists"       "$GPG_DIR"
-GPG_FILES=("${GPG_DIR}"/proxmox-release-*.gpg)
-if [[ -f "${GPG_FILES[0]}" ]]; then
-  record PASS "GPG key file written"
-else
-  record FAIL "GPG key file written" "no proxmox-release-*.gpg in $GPG_DIR"
-fi
+GPG_FILE="${TR}/usr/share/keyrings/lierfang.gpg"
+check_exists    "GPG keyrings directory exists"            "${TR}/usr/share/keyrings"
+check_exists    "GPG key file (lierfang.gpg) written"      "$GPG_FILE"
 
 # cloud-init drop-in
 DROPIN="${TR}/etc/cloud/cloud.cfg.d/99-pimox-hostname.cfg"

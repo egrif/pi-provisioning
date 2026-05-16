@@ -71,9 +71,9 @@ done
 # writes to that directory. Used by test-pimox-setup.sh.
 TR="${PIMOX_TEST_ROOT:-}"
 if [[ -n "$TR" ]]; then
-  mkdir -p "${TR}/etc/apt/trusted.gpg.d" "${TR}/etc/apt/sources.list.d" \
-           "${TR}/etc/cloud/cloud.cfg.d"  "${TR}/etc/network" \
-           "${TR}/etc/systemd/system"     "${TR}/usr/local/sbin"
+  mkdir -p "${TR}/etc/apt/sources.list.d"  "${TR}/etc/cloud/cloud.cfg.d" \
+           "${TR}/etc/network"            "${TR}/etc/systemd/system" \
+           "${TR}/usr/local/sbin"         "${TR}/usr/share/keyrings"
   : > "${TR}/etc/hosts"
   : > "${TR}/etc/cloud/cloud.cfg"
   : > "${TR}/etc/network/interfaces"
@@ -241,9 +241,8 @@ fi
 # ─── Step 6: Add PiMox GPG key ───────────────────────────────────────────────
 step "Step 6: Add PiMox GPG key"
 
-GPG_OUT="${TR}/etc/apt/trusted.gpg.d/proxmox-release-${CODENAME}.gpg"
-curl -fsSL "https://mirrors.lierfang.com/proxmox-port/debian/dists/${CODENAME}/Release.gpg" \
-  | gpg --dearmor -o "$GPG_OUT"
+GPG_OUT="${TR}/usr/share/keyrings/lierfang.gpg"
+curl -L "https://mirrors.lierfang.com/pxcloud/lierfang.gpg" | tee "$GPG_OUT" > /dev/null
 ok "GPG key written to $GPG_OUT"
 
 # ─── Step 7: Add PiMox repository ────────────────────────────────────────────
@@ -251,7 +250,7 @@ step "Step 7: Add PiMox apt repository"
 
 REPO_FILE="${TR}/etc/apt/sources.list.d/pveport.list"
 cat > "$REPO_FILE" <<EOF
-deb https://mirrors.lierfang.com/proxmox-port/debian ${CODENAME} pve-no-subscription
+deb [arch=arm64 signed-by=/usr/share/keyrings/lierfang.gpg] https://mirrors.lierfang.com/pxcloud/pxvirt ${CODENAME} main
 EOF
 ok "Repository added: $REPO_FILE"
 
