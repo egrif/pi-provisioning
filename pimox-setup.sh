@@ -13,6 +13,8 @@
 #   --dns ADDR          DNS server (default: auto-detect from /etc/resolv.conf)
 #   --iface NAME        Network interface (default: auto-detect)
 #   --root-password PWD Root password (default: prompt interactively)
+#   --codename NAME     Override OS codename (default: auto-detect)
+#   --patch-nag         Remove the Proxmox "no valid subscription" nag from the web UI
 #   --skip-upgrade      Skip apt update/upgrade (faster re-runs)
 #   -y, --yes           Auto-approve all prompts
 
@@ -46,6 +48,7 @@ NETMASK=""
 DNS=""
 IFACE=""
 CODENAME=""
+PATCH_NAG=false
 SKIP_UPGRADE=false
 AUTO_YES=false
 ROOT_PASSWORD=""
@@ -59,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     --dns)           DNS="$2";            shift 2 ;;
     --iface)         IFACE="$2";          shift 2 ;;
     --codename)      CODENAME="$2";       shift 2 ;;
+    --patch-nag)     PATCH_NAG=true;      shift ;;
     --root-password) ROOT_PASSWORD="$2";  shift 2 ;;
     --skip-upgrade)  SKIP_UPGRADE=true;   shift ;;
     -y|--yes)        AUTO_YES=true;       shift ;;
@@ -327,6 +331,10 @@ echo "postfix postfix/mailname           string $(hostname)" | debconf-set-selec
 apt-get install -y proxmox-ve postfix open-iscsi pve-edk2-firmware-aarch64
 
 echo "[$(date -Iseconds)] Proxmox VE installation complete."
+SCRIPT
+
+if [[ "$PATCH_NAG" == "true" ]]; then
+  cat >> "$INSTALL_SCRIPT" <<'NAGPATCH'
 
 # Remove the "No valid subscription" nag from the web UI.
 # A dpkg hook re-applies this patch after every proxmox-widget-toolkit upgrade.
@@ -344,6 +352,12 @@ EOF
 
 /usr/local/sbin/pve-nag-patch.sh
 echo "[$(date -Iseconds)] Subscription nag patched."
+NAGPATCH
+  ok "Subscription nag patch queued for Phase 2"
+fi
+
+# Always runs last so the service disables itself after all work is done
+cat >> "$INSTALL_SCRIPT" <<'SCRIPT'
 
 # Disable this service so it doesn't run again on next boot
 systemctl disable pimox-install.service

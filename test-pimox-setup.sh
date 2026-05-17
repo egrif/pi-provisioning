@@ -208,6 +208,7 @@ run_mock_integration() {
       --dns           1.1.1.1 \
       --iface         eth0 \
       --codename      "$codename" \
+      --patch-nag \
       --root-password testpass \
       --skip-upgrade 2>&1 | sed 's/^/    /'
   echo
@@ -268,6 +269,21 @@ if [[ "$VALIDATE_ONLY" == "true" ]]; then
 else
   run_mock_integration bookworm
   run_mock_integration trixie
+
+  # Verify nag patch is absent when --patch-nag is not passed
+  step "Nag patch opt-in check"
+  _no_nag_tr="$WORK_DIR/test-root-no-nag"
+  PIMOX_TEST_ROOT="$_no_nag_tr" \
+    "$PIMOX_SCRIPT" -y \
+      --hostname pimox-test --ip "$TEST_IP" --gateway "$TEST_GATEWAY" \
+      --netmask 24 --dns 1.1.1.1 --iface eth0 --codename bookworm \
+      --root-password testpass --skip-upgrade &>/dev/null
+  _no_nag_install="$_no_nag_tr/usr/local/sbin/pimox-install.sh"
+  if grep -qF "pve-nag-patch.sh" "$_no_nag_install" 2>/dev/null; then
+    record FAIL "nag absent without --patch-nag" "pve-nag-patch.sh found in pimox-install.sh"
+  else
+    record PASS "nag absent without --patch-nag"
+  fi
 fi  # end mock integration
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -59,6 +59,7 @@ param(
     [switch]$Yes,            # auto-confirm non-destructive prompts (device confirm always requires "yes")
 
     [switch]$Pimox,                         # install Proxmox VE (two-phase; auto-reboots after first boot)
+    [switch]$PatchNag,                      # remove the Proxmox "no valid subscription" nag from the web UI
     [string]$RootPassword   = "",           # 'same' to reuse PiPassword; default: prompt with enter-to-reuse
     [string]$PimoxIp        = "",           # static IP for Proxmox bridge (default: auto-detect)
     [string]$PimoxGateway   = "",           # default gateway (default: auto-detect)
@@ -550,8 +551,10 @@ if ($Pimox) {
     ud '      echo "postfix postfix/mailname           string $(hostname)" | debconf-set-selections'
     ud '      apt-get install -y proxmox-ve postfix open-iscsi pve-edk2-firmware-aarch64'
     ud '      echo "[$(date -Iseconds)] Proxmox VE installation complete."'
-    ud '      /usr/local/sbin/pve-nag-patch.sh'
-    ud '      echo "[$(date -Iseconds)] Subscription nag patched."'
+    if ($PatchNag) {
+        ud '      /usr/local/sbin/pve-nag-patch.sh'
+        ud '      echo "[$(date -Iseconds)] Subscription nag patched."'
+    }
     ud '      systemctl disable pimox-install.service'
     ud ""
     ud "  - path: /etc/systemd/system/pimox-install.service"
@@ -580,21 +583,23 @@ if ($Pimox) {
     ud "    content: |"
     ud "      preserve_hostname: true"
     ud "      manage_etc_hosts: false"
-    ud ""
-    ud "  - path: /usr/local/sbin/pve-nag-patch.sh"
-    ud "    permissions: '0755'"
-    ud "    owner: root:root"
-    ud "    content: |"
-    ud '      #!/usr/bin/env bash'
-    ud '      JS=/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js'
-    ud '      [[ -f "$JS" ]] || exit 0'
-    ud "      sed -Ezi.bak `"s/(Ext.Msg.show\(\{[^}]*title: gettext\('No valid sub)/void(\({ \/\/\1/g`" `"`$JS`""
-    ud ""
-    ud "  - path: /etc/apt/apt.conf.d/86pve-nag-buster"
-    ud "    owner: root:root"
-    ud "    permissions: '0644'"
-    ud "    content: |"
-    ud '      DPkg::Post-Invoke { "/usr/local/sbin/pve-nag-patch.sh || true"; };'
+    if ($PatchNag) {
+        ud ""
+        ud "  - path: /usr/local/sbin/pve-nag-patch.sh"
+        ud "    permissions: '0755'"
+        ud "    owner: root:root"
+        ud "    content: |"
+        ud '      #!/usr/bin/env bash'
+        ud '      JS=/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js'
+        ud '      [[ -f "$JS" ]] || exit 0'
+        ud "      sed -Ezi.bak `"s/(Ext.Msg.show\(\{[^}]*title: gettext\('No valid sub)/void(\({ \/\/\1/g`" `"`$JS`""
+        ud ""
+        ud "  - path: /etc/apt/apt.conf.d/86pve-nag-buster"
+        ud "    owner: root:root"
+        ud "    permissions: '0644'"
+        ud "    content: |"
+        ud '      DPkg::Post-Invoke { "/usr/local/sbin/pve-nag-patch.sh || true"; };'
+    }
 }
 
 # pi-provision.sh — config vars use PowerShell expansion; bash body is a literal single-quoted here-string
