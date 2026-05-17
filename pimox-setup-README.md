@@ -14,7 +14,27 @@ Based on: https://pimylifeup.com/raspberry-pi-proxmox/
 
 ---
 
-## Usage
+## Quick start (one-liner)
+
+No need to clone the repo. Pipe directly from GitHub:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/beartums/pi-provisioning/main/pimox-setup.sh \
+  | sudo bash -s -- --hostname pimox01
+```
+
+Pass any options after `--`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/beartums/pi-provisioning/main/pimox-setup.sh \
+  | sudo bash -s -- --hostname pimox01 --ip 192.168.1.50 --gateway 192.168.1.1 -y
+```
+
+Network settings (IP, gateway, netmask, DNS, interface) are auto-detected if not provided.
+
+---
+
+## Usage (if you have the repo)
 
 ```bash
 sudo ./pimox-setup.sh --hostname <name> [options]
@@ -66,6 +86,7 @@ The `pimox-install.service` systemd unit fires after `network-online.target` and
 
 - Pre-seeds `debconf` for `postfix` (local-only, non-interactive)
 - Installs: `proxmox-ve postfix open-iscsi pve-edk2-firmware-aarch64`
+- Removes the "no valid subscription" nag from the web UI and installs a dpkg hook (`86pve-nag-buster`) so the patch re-applies automatically after upgrades
 - Logs all output to `/var/log/pimox-install.log`
 - Disables itself so it does not run again on subsequent reboots
 
@@ -89,7 +110,7 @@ rm -f /etc/apt/sources.list.d/pve-enterprise.list
 apt-get update
 ```
 
-To remove the "no valid subscription" nag from the UI, see the Proxmox community wiki.
+The "no valid subscription" nag is removed automatically during Phase 2.
 
 ---
 
