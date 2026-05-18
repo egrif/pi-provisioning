@@ -243,8 +243,14 @@ if [[ -n "$ROOT_PASSWORD" ]]; then
   echo "root:${ROOT_PASSWORD}" | chpasswd
   ok "Root password set from --root-password"
 else
-  info "You will now be prompted to set the root password (required for Proxmox web UI)"
-  passwd root
+  while true; do
+    read -rsp "$(echo -e "${YELLOW}Root password (for Proxmox web UI):${RESET} ")" ROOT_PASSWORD < /dev/tty; echo
+    read -rsp "$(echo -e "${YELLOW}Confirm root password:${RESET} ")" ROOT_PASS2 < /dev/tty; echo
+    [[ "$ROOT_PASSWORD" == "$ROOT_PASS2" ]] && break
+    warn "Passwords do not match — try again"
+  done
+  echo "root:${ROOT_PASSWORD}" | chpasswd
+  ok "Root password set"
 fi
 
 # ─── Step 6: Add PiMox GPG key ───────────────────────────────────────────────
