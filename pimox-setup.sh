@@ -356,6 +356,21 @@ echo "postfix postfix/mailname           string $(hostname)" | debconf-set-selec
 
 apt-get install -y proxmox-ve postfix open-iscsi pve-edk2-firmware-aarch64
 
+# pve-manager ships pxvirt-sources.list; remove our Phase 1 bootstrap entry
+# only if pxvirt-sources.list already contains the same codename — on trixie
+# the package-owned file may still point to bookworm, so keep ours in that case.
+_pveport="/etc/apt/sources.list.d/pveport.list"
+_pxvirt="/etc/apt/sources.list.d/pxvirt-sources.list"
+if [[ -f "$_pveport" && -f "$_pxvirt" ]]; then
+  _our_codename=$(awk '/^deb / {print $(NF-1)}' "$_pveport" | head -1)
+  if grep -qF "$_our_codename" "$_pxvirt" 2>/dev/null; then
+    rm -f "$_pveport"
+    echo "[$(date -Iseconds)] Removed pveport.list (pxvirt-sources.list already has ${_our_codename})"
+  else
+    echo "[$(date -Iseconds)] Kept pveport.list (pxvirt-sources.list does not contain ${_our_codename})"
+  fi
+fi
+
 echo "[$(date -Iseconds)] Proxmox VE installation complete."
 SCRIPT
 

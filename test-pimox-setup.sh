@@ -168,6 +168,7 @@ check_contains "interfaces: bridge-stp off"                     "bridge-stp off"
 check_contains "interfaces: bridge-fd 0"                        "bridge-fd 0"                                 "$PIMOX_SCRIPT"
 check_contains "log2ram installed by default"                   "apt-get install -y log2ram"                  "$PIMOX_SCRIPT"
 check_contains "log2ram: --skip-log2ram opt-out present"        "skip-log2ram"                                "$PIMOX_SCRIPT"
+check_contains "phase2: conditional pveport.list cleanup present" "pxvirt-sources.list"                         "$PIMOX_SCRIPT"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 2 — URL reachability (--check-urls only)
@@ -246,6 +247,7 @@ run_mock_integration() {
   check_contains    "[${codename}] pimox-install.sh: logs to file"         "pimox-install.log" "$install"
   check_contains    "[${codename}] pimox-install.sh: creates nag patch"    "pve-nag-patch.sh"  "$install"
   check_contains    "[${codename}] pimox-install.sh: installs dpkg hook"   "86pve-nag-buster"  "$install"
+  check_contains    "[${codename}] pimox-install.sh: conditional pveport.list cleanup" "pxvirt-sources.list" "$install"
 
   # pimox-install.service
   local service="${tr}/etc/systemd/system/pimox-install.service"
