@@ -166,6 +166,8 @@ check_contains "cloud.cfg.d: manage_etc_hosts false"            "manage_etc_host
 check_contains "interfaces: vmbr0 bridge config"                "iface vmbr0 inet static"                     "$PIMOX_SCRIPT"
 check_contains "interfaces: bridge-stp off"                     "bridge-stp off"                              "$PIMOX_SCRIPT"
 check_contains "interfaces: bridge-fd 0"                        "bridge-fd 0"                                 "$PIMOX_SCRIPT"
+check_contains "log2ram installed by default"                   "apt-get install -y log2ram"                  "$PIMOX_SCRIPT"
+check_contains "log2ram: --skip-log2ram opt-out present"        "skip-log2ram"                                "$PIMOX_SCRIPT"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 2 — URL reachability (--check-urls only)
@@ -215,7 +217,8 @@ run_mock_integration() {
       --codename      "$codename" \
       --patch-nag \
       --root-password testpass \
-      --skip-upgrade 2>&1 | sed 's/^/    /'
+      --skip-upgrade \
+      --skip-log2ram 2>&1 | sed 's/^/    /'
   echo
 
   step "Validating generated files (${codename})"
@@ -288,7 +291,7 @@ else
     "$PIMOX_SCRIPT" -y \
       --hostname pimox-test --ip "$TEST_IP" --gateway "$TEST_GATEWAY" \
       --netmask 24 --dns 1.1.1.1 --iface eth0 --codename bookworm \
-      --root-password testpass --skip-upgrade &>/dev/null
+      --root-password testpass --skip-upgrade --skip-log2ram &>/dev/null
   _no_nag_install="$_no_nag_tr/usr/local/sbin/pimox-install.sh"
   if grep -qF "pve-nag-patch.sh" "$_no_nag_install" 2>/dev/null; then
     record FAIL "nag absent without --patch-nag" "pve-nag-patch.sh found in pimox-install.sh"

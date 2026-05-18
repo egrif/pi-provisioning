@@ -15,6 +15,7 @@
 #   --root-password PWD Root password (default: prompt interactively)
 #   --codename NAME     Override OS codename (default: auto-detect)
 #   --patch-nag         Remove the Proxmox "no valid subscription" nag from the web UI
+#   --skip-log2ram      Skip log2ram install (default: installed to reduce SD card writes)
 #   --skip-upgrade      Skip apt update/upgrade (faster re-runs)
 #   -y, --yes           Auto-approve all prompts
 
@@ -49,6 +50,7 @@ DNS=""
 IFACE=""
 CODENAME=""
 PATCH_NAG=false
+LOG2RAM=true
 SKIP_UPGRADE=false
 AUTO_YES=false
 ROOT_PASSWORD=""
@@ -63,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --iface)         IFACE="$2";          shift 2 ;;
     --codename)      CODENAME="$2";       shift 2 ;;
     --patch-nag)     PATCH_NAG=true;      shift ;;
+    --skip-log2ram)  LOG2RAM=false;       shift ;;
     --root-password) ROOT_PASSWORD="$2";  shift 2 ;;
     --skip-upgrade)  SKIP_UPGRADE=true;   shift ;;
     -y|--yes)        AUTO_YES=true;       shift ;;
@@ -176,7 +179,7 @@ echo
 confirm "Proceed with these settings?" || die "Aborted."
 
 # ─── Step 1: System update ───────────────────────────────────────────────────
-step "Step 1: System update & install curl"
+step "Step 1: System update & install packages"
 
 if [[ "$SKIP_UPGRADE" == "true" ]]; then
   warn "Skipping apt update/upgrade (--skip-upgrade)"
@@ -186,6 +189,13 @@ else
 fi
 apt-get install -y curl
 ok "System updated"
+
+if [[ "$LOG2RAM" == "true" ]]; then
+  apt-get install -y log2ram
+  ok "log2ram installed (buffers /var/log in RAM, reduces SD card write wear)"
+else
+  info "Skipping log2ram (--skip-log2ram)"
+fi
 
 # ─── Step 2: Set hostname ────────────────────────────────────────────────────
 step "Step 2: Configure hostname"
