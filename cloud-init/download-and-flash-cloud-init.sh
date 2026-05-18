@@ -884,6 +884,18 @@ else
 fi
 printf '%s\n' "$CMDLINE" > "$CMDLINE_FILE"
 
+# When --pimox: add cgroup params required for LXC container memory reporting
+if [[ "$PIMOX" == "true" ]]; then
+  CMDLINE=$(tr -d '\n' < "$CMDLINE_FILE")
+  for PARAM in "cgroup_enable=cpuset" "cgroup_enable=memory" "cgroup_memory=1"; do
+    if ! echo "$CMDLINE" | grep -qF "$PARAM"; then
+      CMDLINE="${CMDLINE} ${PARAM}"
+    fi
+  done
+  printf '%s\n' "$CMDLINE" > "$CMDLINE_FILE"
+  ok "Added cgroup params to cmdline.txt for PiMox LXC memory reporting"
+fi
+
 # ─── config.txt — enable i2c ──────────────────────────────────────────────────
 CONFIG_FILE="$BOOT_PATH/config.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -903,6 +915,17 @@ if [[ -f "$CONFIG_FILE" ]]; then
   fi
 else
   warn "config.txt not found — skipping i2c config.txt update"
+fi
+
+# When --pimox: set kernel=kernel8.img for 4K page size (required by PXVirt)
+if [[ "$PIMOX" == "true" && -f "$CONFIG_FILE" ]]; then
+  if grep -q "^kernel=kernel8.img" "$CONFIG_FILE"; then
+    info "kernel=kernel8.img already set in config.txt"
+  else
+    grep -v "^kernel=" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    printf '\nkernel=kernel8.img\n' >> "$CONFIG_FILE"
+    ok "Set kernel=kernel8.img in config.txt (4K page size required by PXVirt)"
+  fi
 fi
 
 # ─── network-config ────────────────────────────────────────────────────────────

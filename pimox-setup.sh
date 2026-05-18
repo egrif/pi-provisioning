@@ -80,10 +80,13 @@ TR="${PIMOX_TEST_ROOT:-}"
 if [[ -n "$TR" ]]; then
   mkdir -p "${TR}/etc/apt/sources.list.d"  "${TR}/etc/cloud/cloud.cfg.d" \
            "${TR}/etc/network"            "${TR}/etc/systemd/system" \
-           "${TR}/usr/local/sbin"         "${TR}/usr/share/keyrings"
+           "${TR}/usr/local/sbin"         "${TR}/usr/share/keyrings" \
+           "${TR}/boot/firmware"
   : > "${TR}/etc/hosts"
   : > "${TR}/etc/cloud/cloud.cfg"
   : > "${TR}/etc/network/interfaces"
+  : > "${TR}/boot/firmware/config.txt"
+  : > "${TR}/boot/firmware/cmdline.txt"
   apt-get()    { true; }
   curl()       { local _o=""; while [[ $# -gt 0 ]]; do [[ "$1" == "-o" ]] && { _o="$2"; shift 2; } || shift; done; [[ -n "$_o" ]] && touch "$_o" || true; }
   gpg()        { local _o=""; while [[ $# -gt 0 ]]; do [[ "$1" == "-o" ]] && { _o="$2"; shift 2; } || shift; done; [[ -n "$_o" ]] && cat > "$_o" || cat > /dev/null; }
@@ -257,8 +260,15 @@ fi
 step "Step 6: Add PiMox GPG key"
 
 GPG_OUT="${TR}/usr/share/keyrings/lierfang.gpg"
-curl -L "https://mirrors.lierfang.com/pxcloud/lierfang.gpg" | tee "$GPG_OUT" > /dev/null
-ok "GPG key written to $GPG_OUT"
+GPG_PRIMARY="https://mirrors.lierfang.com/pxcloud/pxvirt/pveport.gpg"
+GPG_FALLBACK="https://mirrors.lierfang.com/pxcloud/lierfang.gpg"
+if curl -fsSL --max-time 10 "$GPG_PRIMARY" -o "$GPG_OUT" 2>/dev/null; then
+  ok "GPG key fetched: $GPG_PRIMARY"
+elif curl -fsSL --max-time 10 "$GPG_FALLBACK" -o "$GPG_OUT" 2>/dev/null; then
+  warn "Primary GPG URL unavailable — used fallback: $GPG_FALLBACK"
+else
+  die "Failed to fetch PXVirt GPG key from primary ($GPG_PRIMARY) and fallback ($GPG_FALLBACK)"
+fi
 
 # ─── Step 7: Add PiMox repository ────────────────────────────────────────────
 step "Step 7: Add PiMox apt repository"
@@ -393,6 +403,45 @@ systemctl daemon-reload
 systemctl enable pimox-install.service
 ok "Service registered: pimox-install.service (runs once on next boot)"
 info "Installation log will be written to: /var/log/pimox-install.log"
+
+# ─── Step 12: Configure boot parameters for PiMox ───────────────────────────
+step "Step 12: Configure boot parameters"
+
+BOOT_CONFIG="${TR}/boot/firmware/config.txt"
+BOOT_CMDLINE="${TR}/boot/firmware/cmdline.txt"
+
+# config.txt: 4K pagesize kernel — required by PXVirt (docs.pxvirt.lierfang.com)
+if [[ -f "$BOOT_CONFIG" ]]; then
+  if grep -q "^kernel=kernel8.img" "$BOOT_CONFIG"; then
+    info "kernel=kernel8.img already set in config.txt"
+  else
+    _sed_i '/^kernel=/d' "$BOOT_CONFIG"
+    printf '\nkernel=kernel8.img\n' >> "$BOOT_CONFIG"
+    ok "Set kernel=kernel8.img in config.txt (4K page size required by PXVirt)"
+  fi
+else
+  warn "/boot/firmware/config.txt not found — skipping kernel page size config"
+fi
+
+# cmdline.txt: cgroup params required for LXC container memory reporting
+if [[ -f "$BOOT_CMDLINE" ]]; then
+  CMDLINE=$(tr -d '\n' < "$BOOT_CMDLINE")
+  CGROUP_ADDED=""
+  for PARAM in "cgroup_enable=cpuset" "cgroup_enable=memory" "cgroup_memory=1"; do
+    if ! echo "$CMDLINE" | grep -qF "$PARAM"; then
+      CMDLINE="${CMDLINE} ${PARAM}"
+      CGROUP_ADDED="${CGROUP_ADDED} ${PARAM}"
+    fi
+  done
+  if [[ -n "$CGROUP_ADDED" ]]; then
+    printf '%s\n' "$CMDLINE" > "$BOOT_CMDLINE"
+    ok "Added cgroup params to cmdline.txt:${CGROUP_ADDED}"
+  else
+    info "cgroup params already present in cmdline.txt"
+  fi
+else
+  warn "/boot/firmware/cmdline.txt not found — skipping cgroup config"
+fi
 
 # ─── Done ────────────────────────────────────────────────────────────────────
 echo

@@ -156,7 +156,11 @@ check_contains "service: ExecStart points to install script"    "ExecStart=/usr/
 check_contains "service: WantedBy=multi-user.target"            "WantedBy=multi-user.target"                  "$PIMOX_SCRIPT"
 check_contains "service: Type=oneshot"                          "Type=oneshot"                                "$PIMOX_SCRIPT"
 check_contains "repo URL is pxcloud/pxvirt"                     "mirrors.lierfang.com/pxcloud/pxvirt"         "$PIMOX_SCRIPT"
-check_contains "GPG key from mirrors.lierfang.com/pxcloud"      "https://mirrors.lierfang.com/pxcloud"        "$PIMOX_SCRIPT"
+check_contains "GPG primary URL: pxcloud/pxvirt/pveport.gpg"    "pxcloud/pxvirt/pveport.gpg"                  "$PIMOX_SCRIPT"
+check_contains "GPG fallback URL present"                        "pxcloud/lierfang.gpg"                        "$PIMOX_SCRIPT"
+check_contains "boot: kernel=kernel8.img set"                    "kernel=kernel8.img"                          "$PIMOX_SCRIPT"
+check_contains "boot: cgroup_enable=memory set"                  "cgroup_enable=memory"                        "$PIMOX_SCRIPT"
+check_contains "boot: cgroup_memory=1 set"                       "cgroup_memory=1"                             "$PIMOX_SCRIPT"
 check_contains "cloud.cfg.d: preserve_hostname"                 "preserve_hostname: true"                     "$PIMOX_SCRIPT"
 check_contains "cloud.cfg.d: manage_etc_hosts false"            "manage_etc_hosts: false"                     "$PIMOX_SCRIPT"
 check_contains "interfaces: vmbr0 bridge config"                "iface vmbr0 inet static"                     "$PIMOX_SCRIPT"
@@ -181,7 +185,8 @@ check_url() {
   fi
 }
 
-check_url "GPG key URL reachable"                    "https://mirrors.lierfang.com/pxcloud/lierfang.gpg"
+check_url "GPG key URL reachable (primary)"          "https://mirrors.lierfang.com/pxcloud/pxvirt/pveport.gpg"
+check_url "GPG key URL reachable (fallback)"         "https://mirrors.lierfang.com/pxcloud/lierfang.gpg"
 check_url "Repo Release file reachable (bookworm)"   "https://mirrors.lierfang.com/pxcloud/pxvirt/dists/bookworm/Release"
 check_url "Repo Release file reachable (trixie)"     "https://mirrors.lierfang.com/pxcloud/pxvirt/dists/trixie/Release"
 
@@ -256,6 +261,12 @@ run_mock_integration() {
   # GPG key
   check_exists    "[${codename}] GPG keyrings directory exists"            "${tr}/usr/share/keyrings"
   check_exists    "[${codename}] GPG key file (lierfang.gpg) written"      "${tr}/usr/share/keyrings/lierfang.gpg"
+
+  # boot parameters
+  check_contains  "[${codename}] config.txt: kernel=kernel8.img"          "kernel=kernel8.img"       "${tr}/boot/firmware/config.txt"
+  check_contains  "[${codename}] cmdline.txt: cgroup_enable=cpuset"       "cgroup_enable=cpuset"     "${tr}/boot/firmware/cmdline.txt"
+  check_contains  "[${codename}] cmdline.txt: cgroup_enable=memory"       "cgroup_enable=memory"     "${tr}/boot/firmware/cmdline.txt"
+  check_contains  "[${codename}] cmdline.txt: cgroup_memory=1"            "cgroup_memory=1"          "${tr}/boot/firmware/cmdline.txt"
 
   # cloud-init drop-in
   local dropin="${tr}/etc/cloud/cloud.cfg.d/99-pimox-hostname.cfg"
