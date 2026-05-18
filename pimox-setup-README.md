@@ -37,14 +37,14 @@ Network settings (IP, gateway, netmask, DNS, interface) are auto-detected if not
 ## Usage (if you have the repo)
 
 ```bash
-sudo ./pimox-setup.sh --hostname <name> [options]
+sudo ./pimox-setup.sh [--hostname <name>] [options]
 ```
 
 ### Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--hostname NAME` | Hostname to assign **(required)** | — |
+| `--hostname NAME` | Hostname to assign | Current hostname |
 | `--ip ADDR` | Static IP address | Auto-detect from current interface |
 | `--gateway ADDR` | Default gateway | Auto-detect from routing table |
 | `--netmask MASK` | CIDR prefix length (e.g. `24`) | Auto-detect |

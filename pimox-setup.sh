@@ -6,7 +6,7 @@
 #   sudo ./pimox-setup.sh [options]
 #
 # Options:
-#   --hostname NAME     Hostname to assign (required)
+#   --hostname NAME     Hostname to assign (default: current hostname)
 #   --ip ADDR           Static IP address (default: auto-detect)
 #   --gateway ADDR      Default gateway (default: auto-detect)
 #   --netmask MASK      Netmask in CIDR or dotted notation (default: auto-detect)
@@ -119,15 +119,15 @@ else
   CODENAME="bookworm"
 fi
 
-SUPPORTED_CODENAMES=("bookworm" "trixie")
-if [[ ! " ${SUPPORTED_CODENAMES[*]} " =~ " ${CODENAME} " ]]; then
-  warn "OS codename '${CODENAME}' is not a verified PiMox release (supported: ${SUPPORTED_CODENAMES[*]})"
-  confirm "Continue anyway? The repo may not exist for this release." || die "Aborted."
+REPO_BASE="https://mirrors.lierfang.com/pxcloud/pxvirt"
+if curl -fsSL --max-time 5 "${REPO_BASE}/dists/${CODENAME}/Release" -o /dev/null 2>/dev/null; then
+  ok "OS codename: ${CODENAME} (confirmed available on mirror)"
 else
-  ok "OS codename: ${CODENAME}"
+  warn "Codename '${CODENAME}' not found on mirror — falling back to 'bookworm'"
+  CODENAME="bookworm"
 fi
 
-[[ -n "$NEW_HOSTNAME" ]] || die "--hostname is required. Example: --hostname pimox01"
+[[ -n "$NEW_HOSTNAME" ]] || NEW_HOSTNAME=$(hostname)
 
 # ─── Auto-detect network values ──────────────────────────────────────────────
 step "Network detection"
